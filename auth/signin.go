@@ -3,8 +3,6 @@ package auth
 import (
 	"github.com/delta18-git/pesuio-final-project/models"
 	"github.com/gin-gonic/gin"
-	"gorm.io/driver/sqlite"
-    "gorm.io/gorm"
 )
 
 func Signin(c *gin.Context) {
