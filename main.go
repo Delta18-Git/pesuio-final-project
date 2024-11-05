@@ -3,11 +3,13 @@ package main
 import (
 	"github.com/delta18-git/pesuio-final-project/auth"
 	"github.com/delta18-git/pesuio-final-project/compiler"
+	"github.com/delta18-git/pesuio-final-project/database"
 	"github.com/delta18-git/pesuio-final-project/questions"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	database.Init("backend.db")
 	router := gin.Default()
 
 	router.POST("/auth/signin", auth.Signin)

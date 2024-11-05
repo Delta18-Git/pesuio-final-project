@@ -10,11 +10,10 @@ var DB *gorm.DB
 var dbErr error
 
 func Init(databaseFileName string) {
-	DB, dbErr = gorm.Open(sqlite.Open("backend.db"), &gorm.Config{})
+	DB, dbErr = gorm.Open(sqlite.Open(databaseFileName), &gorm.Config{})
 	if dbErr != nil {
 		panic("Error connecting to database")
 	}
-	// implement
 	DB.AutoMigrate(&models.User{}, &models.Question{})
 
 }

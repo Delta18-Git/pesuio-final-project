@@ -4,7 +4,6 @@ import (
 	"github.com/delta18-git/pesuio-final-project/database"
 	"github.com/delta18-git/pesuio-final-project/models"
 	"github.com/gin-gonic/gin"
-
 )
 
 func Signin(c *gin.Context) {
@@ -16,20 +15,14 @@ func Signin(c *gin.Context) {
 		})
 	}
 
-	result := database.DB.Where("Username = ? AND Password = ?", request.Username, request.Password).First(&request)
-	if result.Error == nil{
-		c.JSON(200, gin.H{"message":"welcome user"} )
+	ok, err := database.CheckPassword(request.Username, request.Password)
+	if ok {
+		c.JSON(200, gin.H{"message": "welcome user"})
 		return
 
-
-	}
-	if result.Error != nil{
-		c.JSON(400, gin.H{"message":"wrong username or password"} )
+	} else {
+		c.JSON(400, gin.H{"message": "wrong username or password"})
 		return
-
-
 	}
-
-
 
 }

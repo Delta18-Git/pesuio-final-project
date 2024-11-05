@@ -11,10 +11,12 @@ type User struct {
 type Question struct {
 	gorm.Model
 	Question  string     `json:"question"`
-	TestCases []TestCase `json:"testCases"`
+	TestCases []TestCase `json:"testCases" gorm:"foreignKey:QuestionID"`
 }
 
 type TestCase struct {
+	gorm.Model
+	QuestionID     uint
 	Input          string `json:"input"`
 	ExpectedOutput string `json:"expectedOutput"`
 }
