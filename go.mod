@@ -1,4 +1,4 @@
-module github.com/anuragrao04/pesuio-final-project
+module github.com/delta18-git/pesuio-final-project
 
 go 1.23.1
 

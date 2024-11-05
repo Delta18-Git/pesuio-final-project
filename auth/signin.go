@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"github.com/anuragrao04/pesuio-final-project/models"
+	"github.com/delta18-git/pesuio-final-project/models"
 	"github.com/gin-gonic/gin"
 )
 
