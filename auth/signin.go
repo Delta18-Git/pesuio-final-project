@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"github.com/delta18-git/pesuio-final-project/database"
 	"github.com/delta18-git/pesuio-final-project/models"
 	"github.com/gin-gonic/gin"
 
@@ -14,8 +15,8 @@ func Signin(c *gin.Context) {
 			"error": "invalid input",
 		})
 	}
-	
-	result := DB.Where("Username = ? AND Password = ?", request.Username, request.Password).First(&request)
+
+	result := database.DB.Where("Username = ? AND Password = ?", request.Username, request.Password).First(&request)
 	if result.Error == nil{
 		c.JSON(200, gin.H{"message":"welcome user"} )
 		return
@@ -29,6 +30,6 @@ func Signin(c *gin.Context) {
 
 	}
 
-	
+
 
 }
