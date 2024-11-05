@@ -14,6 +14,6 @@ func Init(databaseFileName string) {
 	if dbErr != nil {
 		panic("Error connecting to database")
 	}
-	DB.AutoMigrate(&models.User{}, &models.Question{})
+	DB.AutoMigrate(&models.User{}, &models.Question{}, &models.TestCase{})
 
 }

@@ -11,7 +11,8 @@ type User struct {
 type Question struct {
 	gorm.Model
 	Question  string     `json:"question"`
-	TestCases []TestCase `json:"testCases" gorm:"foreignKey:QuestionID"`
+	TestCases []TestCase `json:"testCases"`
+	Score     int        `json:"score"`
 }
 
 type TestCase struct {
