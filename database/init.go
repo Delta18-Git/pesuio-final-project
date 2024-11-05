@@ -1,17 +1,20 @@
 package database
 
-import ("gorm.io/gorm"
-		"gorm.io/driver/sqlite"
-	)
+import (
+	"github.com/delta18-git/pesuio-final-project/models"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+)
 
 var DB *gorm.DB
+var dbErr error
 
 func Init(databaseFileName string) {
-	DB, err = gorm.Open(sqlite.Open("backend.db"), &gorm.Config{})
-	if err != nil {
+	DB, dbErr = gorm.Open(sqlite.Open("backend.db"), &gorm.Config{})
+	if dbErr != nil {
 		panic("Error connecting to database")
 	}
 	// implement
-	// populate DB variable	
+	DB.AutoMigrate(&models.User{}, &models.Question{})
 
 }
