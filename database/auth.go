@@ -21,3 +21,14 @@ func CheckPassword(username, password string) (success bool, err error) {
 		return true, nil
 	}
 }
+
+func CheckUser(username string) (success bool, err error) {
+	// checks if the given username already exists
+	var checkDB models.User
+	result := DB.Where("Username = ?", username).First(&checkDB)
+	if result.Error != nil {
+		return false, result.Error
+	} else {
+		return true, nil
+	}
+}
