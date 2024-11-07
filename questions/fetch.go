@@ -16,6 +16,7 @@ func FetchQuestion(c *gin.Context) {
 		c.JSON(400, gin.H{
 			"error": "question not found",
 		})
+		return
 	} else {
 		var testCases []models.TestCase
 		err := database.DB.Model(&question).Association("TestCases").Find(&testCases)

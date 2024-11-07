@@ -14,6 +14,7 @@ func Signup(c *gin.Context) {
 		c.JSON(400, gin.H{
 			"error": "invalid input",
 		})
+		return
 	}
 	ok, _ := database.CheckUser(request.Username)
 	if !ok {

@@ -13,11 +13,15 @@ func Signin(c *gin.Context) {
 		c.JSON(400, gin.H{
 			"error": "invalid input",
 		})
+		return
 	}
 
 	ok, err := database.CheckPassword(request.Username, request.Password)
 	if ok {
-		c.JSON(200, gin.H{"message": "welcome user"})
+		c.JSON(200, gin.H{
+			"message": "welcome user",
+			"success": true,
+		})
 		return
 
 	} else {

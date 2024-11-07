@@ -13,6 +13,7 @@ func CreateQuestion(c *gin.Context) {
 		c.JSON(400, gin.H{
 			"error": "invalid input",
 		})
+		return
 	}
 	question := models.Question{
 		Question:  request.Question,
