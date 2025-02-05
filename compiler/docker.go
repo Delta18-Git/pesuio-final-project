@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
+	"path/filepath"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -24,9 +24,17 @@ func runDocker(tempFile *os.File, language string, input string) (outputString, 
 		OpenStdin: true,
 	}
 
+	var hostConfig *container.HostConfig = &container.HostConfig{
+		Resources: container.Resources{
+			Memory:    250 * 1024 * 1024,
+			CPUQuota:  50000,  //half a CPU
+			CPUPeriod: 100000, //per second
+		},
+	}
+
 	var containerImage string
 	var compileCommand string
-	fileName := strings.Split(tempFile.Name(), os.TempDir()+"/")[1]
+	fileName := filepath.Base(tempFile.Name())
 
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -38,46 +46,52 @@ func runDocker(tempFile *os.File, language string, input string) (outputString, 
 
 	switch language {
 	case "py":
-		{
-			containerImage = "python:slim"
-			compileCommand = "python3 /" + fileName
-		}
+		containerImage = "python:slim"
+		compileCommand = "python3 /" + fileName
 	case "go":
-		{
-			containerImage = "golang:alpine"
-			compileCommand = "go run /" + fileName
-		}
+		containerImage = "golang:alpine"
+		compileCommand = "go run /" + fileName
 	case "c":
-		{
-			containerImage = "frolvlad/alpine-gcc:latest"
-			compileCommand = "gcc -static -o /compiledcode /" + fileName + "; ./compiledcode"
-		}
+		containerImage = "frolvlad/alpine-gcc:latest"
+		compileCommand = "gcc -static -o /compiledcode /" + fileName + "; ./compiledcode"
 	case "cpp":
-		{
-			containerImage = "frolvlad/alpine-gxx"
-			compileCommand = "g++ -static -o /compiledcode /" + fileName + "; ./compiledcode"
+		containerImage = "frolvlad/alpine-gxx"
+		compileCommand = "g++ -static -o /compiledcode /" + fileName + "; ./compiledcode"
+	}
+	imageList, err := cli.ImageList(emptyContext, image.ListOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to list Docker images: %w", err).Error()
+	}
+	imageExists := false
+	for _, image := range imageList {
+		for _, tag := range image.RepoTags {
+			if tag == containerImage {
+				imageExists = true
+				break
+			}
+		}
+		if imageExists {
+			break
 		}
 	}
-	pullOutput, err := cli.ImagePull(emptyContext, containerImage, image.PullOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to get image from registry: %v", err).Error()
-	}
-
-	defer pullOutput.Close()
-	_, pullErr := io.ReadAll(pullOutput) //Wait for pull to end before continuing.
-	if pullErr != nil {
-		return "", fmt.Errorf("failed to write pull image from registry: %v", pullErr).Error()
+	if !imageExists {
+		pullOutput, err := cli.ImagePull(emptyContext, containerImage, image.PullOptions{})
+		if err != nil {
+			return "", fmt.Errorf("failed to get image from registry: %v", err).Error()
+		}
+		defer pullOutput.Close()
+		io.Copy(io.Discard, pullOutput) //Wait for pull to end before continuing.
 	}
 	containerConfig.Image = containerImage
 	containerConfig.Cmd = append(containerConfig.Cmd, compileCommand)
-	createdContainer, err := cli.ContainerCreate(emptyContext, containerConfig, nil, nil, nil, "")
+	createdContainer, err := cli.ContainerCreate(emptyContext, containerConfig, hostConfig, nil, nil, "")
 	if err != nil {
 		panic(err.Error())
 	}
 	defer cli.ContainerRemove(emptyContext, createdContainer.ID, container.RemoveOptions{
 		RemoveVolumes: true,
 	})
-	tarTempFile, tarErr := archive.Tar(tempFile.Name(), archive.Gzip)
+	tarTempFile, tarErr := archive.Tar(tempFile.Name(), archive.Uncompressed)
 	if tarErr != nil {
 		return "", fmt.Errorf("failed to write code to tar file: %v", err).Error()
 	}
@@ -110,8 +124,7 @@ func runDocker(tempFile *os.File, language string, input string) (outputString, 
 		return "", fmt.Errorf("failed to write get output from logs: %v", err).Error()
 	}
 
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
+	var stdout, stderr bytes.Buffer
 	stdcopy.StdCopy(&stdout, &stderr, output)
 	outputString = string(stdout.Bytes())
 	errorString = string(stderr.Bytes())
