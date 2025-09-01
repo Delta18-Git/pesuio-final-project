@@ -7,15 +7,17 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/moby/go-archive"
 )
 
-func runDocker(tempFile *os.File, language string, input string) (outputString, errorString string) {
+func runDocker(tempFile *os.File, language string, input string) (string, string) {
 	var cli *client.Client
 
 	var containerConfig *container.Config = &container.Config{
@@ -38,11 +40,11 @@ func runDocker(tempFile *os.File, language string, input string) (outputString, 
 
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
-		panic(err.Error())
+		return "", err.Error()
 	}
 	defer cli.Close()
 
-	var emptyContext context.Context = context.Background()
+	bgContext := context.Background()
 
 	switch language {
 	case "py":
@@ -58,76 +60,86 @@ func runDocker(tempFile *os.File, language string, input string) (outputString, 
 		containerImage = "frolvlad/alpine-gxx"
 		compileCommand = "g++ -static -o /compiledcode /" + fileName + "; ./compiledcode"
 	}
-	imageList, err := cli.ImageList(emptyContext, image.ListOptions{})
+	imageList, err := cli.ImageList(bgContext, image.ListOptions{})
 	if err != nil {
-		return "", fmt.Errorf("failed to list Docker images: %w", err).Error()
+		return "", fmt.Sprintf("failed to list Docker images: %v", err)
 	}
 	imageExists := false
+
 	for _, image := range imageList {
-		for _, tag := range image.RepoTags {
-			if tag == containerImage {
-				imageExists = true
-				break
-			}
+		if slices.Contains(image.RepoTags, containerImage) {
+			imageExists = true
 		}
 		if imageExists {
 			break
 		}
 	}
 	if !imageExists {
-		pullOutput, err := cli.ImagePull(emptyContext, containerImage, image.PullOptions{})
+		pullOutput, err := cli.ImagePull(bgContext, containerImage, image.PullOptions{})
 		if err != nil {
-			return "", fmt.Errorf("failed to get image from registry: %v", err).Error()
+			return "", fmt.Sprintf("failed to get image from registry: %v", err)
 		}
 		defer pullOutput.Close()
 		io.Copy(io.Discard, pullOutput) //Wait for pull to end before continuing.
 	}
 	containerConfig.Image = containerImage
 	containerConfig.Cmd = append(containerConfig.Cmd, compileCommand)
-	createdContainer, err := cli.ContainerCreate(emptyContext, containerConfig, hostConfig, nil, nil, "")
+	createdContainer, err := cli.ContainerCreate(bgContext, containerConfig, hostConfig, nil, nil, "")
 	if err != nil {
-		panic(err.Error())
+		return "", err.Error()
 	}
-	defer cli.ContainerRemove(emptyContext, createdContainer.ID, container.RemoveOptions{
+	defer cli.ContainerRemove(bgContext, createdContainer.ID, container.RemoveOptions{
 		RemoveVolumes: true,
 	})
 	tarTempFile, tarErr := archive.Tar(tempFile.Name(), archive.Uncompressed)
 	if tarErr != nil {
-		return "", fmt.Errorf("failed to write code to tar file: %v", err).Error()
+		return "", fmt.Sprintf("failed to write code to tar file: %v", err)
 	}
-	copyErr := cli.CopyToContainer(emptyContext, createdContainer.ID, "/", tarTempFile, container.CopyToContainerOptions{
+	copyErr := cli.CopyToContainer(bgContext, createdContainer.ID, "/", tarTempFile, container.CopyToContainerOptions{
 		AllowOverwriteDirWithFile: true,
 	})
 	if copyErr != nil {
-		return "", fmt.Errorf("failed to copy file to container: %v", err).Error()
+		return "", fmt.Sprintf("failed to copy file to container: %v", err)
 	}
 
-	hijackedResponse, err := cli.ContainerAttach(emptyContext, createdContainer.ID, container.AttachOptions{
+	hijackedResponse, err := cli.ContainerAttach(bgContext, createdContainer.ID, container.AttachOptions{
 		Stdin:  true,
 		Stream: true,
+		Stdout: true,
+		Stderr: true,
 	})
 	if err != nil {
-		return "", fmt.Errorf("failed to write input to container: %v", err).Error()
+		return "", fmt.Sprintf("failed to write input to container: %v", err)
 	}
 
-	if err := cli.ContainerStart(emptyContext, createdContainer.ID, container.StartOptions{}); err != nil {
-		panic(err)
+	err = cli.ContainerStart(bgContext, createdContainer.ID, container.StartOptions{})
+	if err != nil {
+		return "", fmt.Sprintf("failed to start container: %v", err)
 	}
 
+	statusCh, errCh := cli.ContainerWait(bgContext, createdContainer.ID, container.WaitConditionNotRunning)
+	var stdout, stderr bytes.Buffer
+	go func() {
+		_, _ = stdcopy.StdCopy(&stdout, &stderr, hijackedResponse.Reader)
+	}()
 	_, err = hijackedResponse.Conn.Write([]byte(input + "\n"))
 	if err != nil {
-		return "", fmt.Errorf("failed to write input to stdin: %v", err).Error()
+		return "", fmt.Sprintf("failed to write input to stdin: %v", err)
 	}
-	defer hijackedResponse.Close()
-	output, err := cli.ContainerLogs(emptyContext, createdContainer.ID, container.LogsOptions{ShowStdout: true, ShowStderr: true, Follow: true})
-	if err != nil {
-		return "", fmt.Errorf("failed to write get output from logs: %v", err).Error()
+	hijackedResponse.CloseWrite()
+	select {
+	case <-time.After(2 * time.Minute):
+		stopErr := cli.ContainerStop(context.Background(), createdContainer.ID, container.StopOptions{})
+		if stopErr != nil {
+			return "", fmt.Sprintf("program execution timed out, failed to stop container: %v", stopErr)
+		}
+		return "", "program execution timed out"
+	case err := <-errCh:
+		return "", fmt.Sprintf("error waiting for container: %v", err)
+	case status := <-statusCh:
+		if status.StatusCode != 0 {
+			return stdout.String(), fmt.Sprintf("status code: %d\n %v", status.StatusCode, stderr.String())
+		}
 	}
-
-	var stdout, stderr bytes.Buffer
-	stdcopy.StdCopy(&stdout, &stderr, output)
-	outputString = string(stdout.Bytes())
-	errorString = string(stderr.Bytes())
-
-	return outputString, errorString
+	return stdout.String(), stderr.String()
 }

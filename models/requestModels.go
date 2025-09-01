@@ -1,27 +1,33 @@
 package models
 
 type SignInRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
 }
 
 type SignUpRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
 }
 
 type RunRequest struct {
-	Language string `json:"language"`
-	Code     string `json:"code"`
+	Language string `json:"language" binding:"required"`
+	Code     string `json:"code" binding:"required"`
 	Input    string `json:"input"`
 }
 
+type TestRequest struct {
+	Language   string `json:"language" binding:"required"`
+	Code       string `json:"code" binding:"required"`
+	QuestionID uint   `json:"questionID" binding:"required"`
+}
+
 type CreateQuestionRequest struct {
-	Question  string     `json:"question"`
-	TestCases []TestCase `json:"testCases"`
-	Score     int        `json:"score"`
+	Question  string     `json:"question" binding:"required"`
+	TestCases []TestCase `json:"testCases" binding:"required"`
+	Score     int        `json:"score" binding:"required"`
 }
 
 type FetchQuestionRequest struct {
-	QuestionID uint `json:"questionID"`
+	QuestionID uint `json:"questionID" binding:"required"`
 }

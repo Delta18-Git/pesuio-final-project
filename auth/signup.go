@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"net/http"
+
 	"github.com/delta18-git/pesuio-final-project/database"
 	"github.com/delta18-git/pesuio-final-project/models"
 	"github.com/gin-gonic/gin"
@@ -11,20 +13,22 @@ func Signup(c *gin.Context) {
 	err := c.BindJSON(&request)
 
 	if err != nil {
-		c.JSON(400, gin.H{
-			"error": "invalid input",
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "invalid input",
 		})
 		return
 	}
 	ok, _ := database.CheckUser(request.Username)
 	if !ok {
 		database.CreateUser(request.Username, request.Password)
-		c.JSON(200, gin.H{
+		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 		})
 	} else {
-		c.JSON(400, gin.H{
-			"error": "user already exists",
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "user already exists",
 		})
 	}
 }

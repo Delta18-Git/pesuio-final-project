@@ -11,22 +11,14 @@ func FetchQuestion(c *gin.Context) {
 	c.BindJSON(&request)
 
 	var question models.Question
-	result := database.DB.Where("ID = ?", request.QuestionID).First(&question)
+	result := database.DB.Preload("TestCases").Where("ID = ?", request.QuestionID).First(&question)
 	if result.Error != nil {
 		c.JSON(400, gin.H{
-			"error": "question not found",
+			"success": false,
+			"error":   "question not found",
 		})
 		return
 	} else {
-		var testCases []models.TestCase
-		err := database.DB.Model(&question).Association("TestCases").Find(&testCases)
-		if err != nil {
-			c.JSON(400, gin.H{
-				"error": "error fetching test cases",
-			})
-			return
-		}
-		question.TestCases = testCases
 		c.JSON(200, gin.H{
 			"success":  true,
 			"question": question,

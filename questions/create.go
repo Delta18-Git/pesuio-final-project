@@ -11,7 +11,8 @@ func CreateQuestion(c *gin.Context) {
 	err := c.BindJSON(&request)
 	if err != nil {
 		c.JSON(400, gin.H{
-			"error": "invalid input",
+			"success": false,
+			"error":   "invalid input",
 		})
 		return
 	}
@@ -23,7 +24,8 @@ func CreateQuestion(c *gin.Context) {
 	result := database.DB.Create(&question)
 	if result.Error != nil {
 		c.JSON(400, gin.H{
-			"error": "unable to create question",
+			"success": false,
+			"error":   "unable to create question",
 		})
 	} else {
 		c.JSON(200, gin.H{
