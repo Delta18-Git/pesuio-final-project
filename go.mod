@@ -1,4 +1,4 @@
-module github.com/delta18-git/pesuio-final-project
+module github.com/delta18-git/taskrunner
 
 go 1.25
 

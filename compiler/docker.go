@@ -57,7 +57,7 @@ func runDocker(tempFile *os.File, language string, input string) (string, string
 		containerImage = "frolvlad/alpine-gcc:latest"
 		compileCommand = "gcc -static -o /compiledcode /" + fileName + "; ./compiledcode"
 	case "cpp":
-		containerImage = "frolvlad/alpine-gxx"
+		containerImage = "frolvlad/alpine-gxx:latest"
 		compileCommand = "g++ -static -o /compiledcode /" + fileName + "; ./compiledcode"
 	}
 	imageList, err := cli.ImageList(bgContext, image.ListOptions{})
@@ -80,7 +80,7 @@ func runDocker(tempFile *os.File, language string, input string) (string, string
 			return "", fmt.Sprintf("failed to get image from registry: %v", err)
 		}
 		defer pullOutput.Close()
-		io.Copy(io.Discard, pullOutput) //Wait for pull to end before continuing.
+		io.Copy(io.Discard, pullOutput) // Wait for pull to end before continuing.
 	}
 	containerConfig.Image = containerImage
 	containerConfig.Cmd = append(containerConfig.Cmd, compileCommand)

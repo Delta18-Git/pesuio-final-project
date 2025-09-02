@@ -3,7 +3,7 @@ package database
 import (
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/delta18-git/pesuio-final-project/models"
+	"github.com/delta18-git/taskrunner/models"
 )
 
 func CreateUser(username, password string) error {

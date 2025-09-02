@@ -1,7 +1,7 @@
 package database
 
 import (
-	"github.com/delta18-git/pesuio-final-project/models"
+	"github.com/delta18-git/taskrunner/models"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )

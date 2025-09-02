@@ -3,8 +3,8 @@ package auth
 import (
 	"net/http"
 
-	"github.com/delta18-git/pesuio-final-project/database"
-	"github.com/delta18-git/pesuio-final-project/models"
+	"github.com/delta18-git/taskrunner/database"
+	"github.com/delta18-git/taskrunner/models"
 	"github.com/gin-gonic/gin"
 )
 
